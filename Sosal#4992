@@ -1,4 +1,4 @@
--- Made by Sosal#4992
+-- Made by Sosal#4992 green
 local Players = game:service("Players")
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
