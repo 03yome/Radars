@@ -1,5 +1,5 @@
---- Core Drawing Ball Radar (Được tối ưu để chạy qua loadstring)
-local scriptver = 'v1.3.2-Balls-Core'
+--- Core Drawing Ball Radar (Đã sửa lỗi ngược hướng trước/sau)
+local scriptver = 'v1.3.2-Balls-Core-Fixed'
 
 if ( _G.RadarKill ) then
     _G.RadarKill()
@@ -43,11 +43,9 @@ local defaultSettings = {
 _G.RadarSettings = _G.RadarSettings or {}
 local settings = _G.RadarSettings
 
--- Đồng bộ cấu hình cấp 1
 for k, v in pairs(defaultSettings) do
     if settings[k] == nil then settings[k] = v end
 end
--- Đồng bộ bảng màu RADAR_THEME
 settings.RADAR_THEME = settings.RADAR_THEME or {}
 for k, v in pairs(defaultSettings.RADAR_THEME) do
     if settings.RADAR_THEME[k] == nil then settings.RADAR_THEME[k] = v end
@@ -70,7 +68,6 @@ local OFFSCREEN_TRANSPARENCY = settings.OFFSCREEN_TRANSPARENCY
 local USE_QUADS = settings.USE_QUADS
 local RADAR_THEME = settings.RADAR_THEME 
 
---- Services ---
 local inputService = game:GetService('UserInputService')
 local playerService = game:GetService('Players')
 local runService = game:GetService('RunService')
@@ -128,7 +125,6 @@ scriptCns.cameraUpdate = workspace:GetPropertyChangedSignal('CurrentCamera'):Con
     clientCamera = workspace.CurrentCamera or workspace:FindFirstChildOfClass('Camera')
 end)
 
---- Ball Logic ---
 local function removeBall(ball)
     local manager = ballManagers[ball]
     if not manager then return end
@@ -205,7 +201,6 @@ for _, ball in ipairs(BallsFolder:GetChildren()) do readyBall(ball) end
 scriptCns.ballAdd = BallsFolder.ChildAdded:Connect(readyBall)
 scriptCns.ballRemove = BallsFolder.ChildRemoved:Connect(removeBall)
 
---- UI Setup ---
 local radarLines = {}
 local radarPosition = newV2(300, 250)
 
@@ -268,7 +263,6 @@ local function setRadarPosition(newPosition)
     end
 end
 
---- Input/Drag/Hover ---
 do
     local radarDragging, zoomingIn, zoomingOut = false, false, false
     scriptCns.inputBegan = inputService.InputBegan:Connect(function(io)
@@ -341,7 +335,7 @@ scriptCns.inputChanged = inputService.InputChanged:Connect(function(input)
     end
 end)
 
---- Render Loop ---
+--- Render Loop (Đã sửa thuật toán xoay ma trận tọa độ) ---
 scriptCns.radarLoop = runService.Heartbeat:Connect(function()
     if ( not clientRoot ) then return end
     local selfPos = clientRoot.Position
@@ -350,7 +344,8 @@ scriptCns.radarLoop = runService.Heartbeat:Connect(function()
     if ( RADAR_ROTATION ) then
         local cameraLookVec = clientCamera.CFrame.LookVector
         local fixedLookVec = newV3(cameraLookVec.X, 0, cameraLookVec.Z).Unit
-        camAngle = math.atan2(fixedLookVec.X, fixedLookVec.Z)
+        -- Sửa lại cách tính góc quay camera để đồng bộ với hướng nhìn thực tế
+        camAngle = math.atan2(fixedLookVec.X, fixedLookVec.Z) + math.pi
     else
         camAngle = math.rad(180)
     end
@@ -377,8 +372,9 @@ scriptCns.radarLoop = runService.Heartbeat:Connect(function()
         local localX = (ballPos.X - selfPos.X) * RADAR_SCALE
         local localY = (ballPos.Z - selfPos.Z) * RADAR_SCALE
         
-        local rotX = localX * mathCos(camAngle) - localY * mathSin(camAngle)
-        local rotY = localX * mathSin(camAngle) + localY * mathCos(camAngle)
+        -- Sửa đổi dấu của ma trận xoay 2D để triệt tiêu lỗi ngược hướng trước/sau
+        local rotX = -(localX * mathCos(camAngle) - localY * mathSin(camAngle))
+        local rotY = -(localX * mathSin(camAngle) + localY * mathCos(camAngle))
         
         local radarPos = newV2(rotX, rotY)
         local isOffscreen = radarPos.Magnitude > RADAR_RADIUS
